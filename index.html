@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>บันทึกหวยลูกค้า</title>
+
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background: #f4f4f4; }
+    h2 { text-align: center; }
+    .form-group { margin: 10px 0; }
+    label { display: block; margin-bottom: 5px; }
+    input { padding: 5px; width: 100%; }
+    button { margin: 5px; padding: 8px 15px; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; background: #fff; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background: #333; color: white; }
+    tr.duplicate { background-color: #f8d7da; } /* แดงอ่อนสำหรับเลขซ้ำ */
+  </style>
+
+  
+</head>
+<body>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <h2>📒 บันทึกหวยลูกค้า</h2>
+
+  <div class="form-group">
+    <label>ชื่อลูกค้า:</label>
+    <input type="text" id="customerName" placeholder="กรอกชื่อลูกค้า">
+  </div>
+
+  <div class="form-group">
+    <label>เลขที่ซื้อ:</label>
+    <input type="text" id="number" placeholder="เช่น 45">
+  </div>
+
+  <div class="form-group">
+    <label>จำนวนเงิน:</label>
+    <input type="number" id="amount" placeholder="เช่น 100">
+  </div>
+
+  <button onclick="addLotto()">➕ บันทึก</button>
+  <button onclick="clearAll()">🗑 ล้างทั้งหมด</button>
+  <button onclick="exportExcel()">⬇ Export Excel</button>
+
+  <table id="lottoTable">
+    <thead>
+      <tr>
+        <th>ชื่อลูกค้า</th>
+        <th>เลข</th>
+        <th>จำนวนเงิน</th>
+        <th>วันเวลา</th>
+        <th>จัดการ</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    let lottoData = JSON.parse(localStorage.getItem("lottoData")) || [];
+
+    function saveData() {
+      localStorage.setItem("lottoData", JSON.stringify(lottoData));
+    }
+
+    function renderTable() {
+      const tbody = document.querySelector("#lottoTable tbody");
+      tbody.innerHTML = "";
+      lottoData.forEach((item, index) => {
+        let tr = document.createElement("tr");
+
+        // ตรวจเลขซ้ำ
+        let isDuplicate = lottoData.some((d, i) => i !== index && d.number === item.number);
+        if (isDuplicate) tr.classList.add("duplicate");
+
+        tr.innerHTML = `
+          <td>${item.customer}</td>
+          <td>${item.number}</td>
+          <td>${item.amount}</td>
+          <td>${item.date}</td>
+          <td><button onclick="deleteRow(${index})">❌ ลบ</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function addLotto() {
+      const customer = document.getElementById("customerName").value.trim();
+      const number = document.getElementById("number").value.trim();
+      const amount = document.getElementById("amount").value.trim();
+
+      if (!customer || !number || !amount) {
+        alert("กรุณากรอกข้อมูลให้ครบ");
+        return;
+      }
+
+      const now = new Date();
+      const dateStr = now.toLocaleDateString("th-TH") + " " + now.toLocaleTimeString("th-TH");
+
+      lottoData.push({ customer, number, amount, date: dateStr });
+      saveData();
+      renderTable();
+
+      document.getElementById("customerName").value = "";
+      document.getElementById("number").value = "";
+      document.getElementById("amount").value = "";
+    }
+
+    function deleteRow(index) {
+      lottoData.splice(index, 1);
+      saveData();
+      renderTable();
+    }
+
+    function clearAll() {
+      if (confirm("ล้างข้อมูลทั้งหมด?")) {
+        lottoData = [];
+        saveData();
+        renderTable();
+      }
+    }
+
+    function exportExcel() {
+      if (lottoData.length === 0) {
+        alert("ไม่มีข้อมูลสำหรับส่งออก");
+        return;
+      }
+      const worksheet = XLSX.utils.json_to_sheet(lottoData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "LottoData");
+      XLSX.writeFile(workbook, "lottoData.xlsx");
+    }
+
+    renderTable();
+  </script>
+</body>
+</html>
