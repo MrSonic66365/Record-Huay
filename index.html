@@ -8,16 +8,14 @@
   <title>บันทึกหวยลูกค้า</title>
 
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; background: #f4f4f4; }
-    h2 { text-align: center; }
-    .form-group { margin: 10px 0; }
-    label { display: block; margin-bottom: 5px; }
-    input { padding: 5px; width: 100%; }
-    button { margin: 5px; padding: 8px 15px; cursor: pointer; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; background: #fff; }
+    body { font-family: "Tahoma"; padding: 20px; background: #f9f9f9; }
+    h2 { color: #333; }
+    input, button { padding: 5px; margin: 5px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; background: white; }
     th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-    th { background: #333; color: white; }
-    tr.duplicate { background-color: #f8d7da; } /* แดงอ่อนสำหรับเลขซ้ำ */
+    th { background: #eee; }
+    tr.duplicate td { background: #ffdddd; } /* ไฮไลต์สีแดงถ้าเลขซ้ำ */
+    #total { margin-top: 15px; font-weight: bold; font-size: 16px; }
   </style>
 
   
@@ -25,26 +23,14 @@
 <body>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-  <h2>📒 บันทึกหวยลูกค้า</h2>
+  <h2>📑 ระบบบันทึกหวยลูกค้า</h2>
 
-  <div class="form-group">
-    <label>ชื่อลูกค้า:</label>
-    <input type="text" id="customerName" placeholder="กรอกชื่อลูกค้า">
-  </div>
-
-  <div class="form-group">
-    <label>เลขที่ซื้อ:</label>
-    <input type="text" id="number" placeholder="เช่น 45">
-  </div>
-
-  <div class="form-group">
-    <label>จำนวนเงิน:</label>
-    <input type="number" id="amount" placeholder="เช่น 100">
-  </div>
-
+  <label>ชื่อลูกค้า: <input type="text" id="customer"></label>
+  <label>เลข: <input type="text" id="number" maxlength="2"></label>
+  <label>จำนวนเงิน: <input type="number" id="amount"></label>
   <button onclick="addLotto()">➕ บันทึก</button>
-  <button onclick="clearAll()">🗑 ล้างทั้งหมด</button>
-  <button onclick="exportExcel()">⬇ Export Excel</button>
+  <button onclick="exportExcel()">📤 Export Excel</button>
+  <button onclick="clearAll()">🗑️ ล้างข้อมูลทั้งหมด</button>
 
   <table id="lottoTable">
     <thead>
@@ -53,88 +39,93 @@
         <th>เลข</th>
         <th>จำนวนเงิน</th>
         <th>วันเวลา</th>
-        <th>จัดการ</th>
+        <th>ลบ</th>
       </tr>
     </thead>
     <tbody></tbody>
   </table>
 
+  <div id="total">ยอดรวมทั้งหมด: 0 บาท</div>
+
   <script>
     let lottoData = JSON.parse(localStorage.getItem("lottoData")) || [];
 
-    function saveData() {
-      localStorage.setItem("lottoData", JSON.stringify(lottoData));
+  function renderTable() {
+    const tbody = document.querySelector("#lottoTable tbody");
+    tbody.innerHTML = "";
+    let total = 0;
+
+    lottoData.forEach((item, index) => {
+      const tr = document.createElement("tr");
+
+      // ตรวจเลขซ้ำ
+      const isDuplicate = lottoData.some((d, i) => d.number === item.number && i !== index);
+      if (isDuplicate) tr.classList.add("duplicate");
+
+      tr.innerHTML = `
+        <td>${item.customer}</td>
+        <td>${item.number}</td>
+        <td>${item.amount}</td>
+        <td>${item.date}</td>
+        <td><button onclick="deleteRow(${index})">❌</button></td>
+      `;
+      tbody.appendChild(tr);
+
+      total += parseFloat(item.amount);
+    });
+
+    document.getElementById("total").innerText = "ยอดรวมทั้งหมด: " + total.toLocaleString() + " บาท";
+  }
+
+  function addLotto() {
+    const customer = document.getElementById("customer").value.trim();
+    const number = document.getElementById("number").value.trim();
+    const amount = parseFloat(document.getElementById("amount").value);
+
+    if (!customer || !number || isNaN(amount)) {
+      alert("กรุณากรอกข้อมูลให้ครบ");
+      return;
     }
 
-    function renderTable() {
-      const tbody = document.querySelector("#lottoTable tbody");
-      tbody.innerHTML = "";
-      lottoData.forEach((item, index) => {
-        let tr = document.createElement("tr");
+    const now = new Date();
+    const date = now.toLocaleString("th-TH");
 
-        // ตรวจเลขซ้ำ
-        let isDuplicate = lottoData.some((d, i) => i !== index && d.number === item.number);
-        if (isDuplicate) tr.classList.add("duplicate");
+    lottoData.push({ customer, number, amount, date });
+    localStorage.setItem("lottoData", JSON.stringify(lottoData));
 
-        tr.innerHTML = `
-          <td>${item.customer}</td>
-          <td>${item.number}</td>
-          <td>${item.amount}</td>
-          <td>${item.date}</td>
-          <td><button onclick="deleteRow(${index})">❌ ลบ</button></td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-
-    function addLotto() {
-      const customer = document.getElementById("customerName").value.trim();
-      const number = document.getElementById("number").value.trim();
-      const amount = document.getElementById("amount").value.trim();
-
-      if (!customer || !number || !amount) {
-        alert("กรุณากรอกข้อมูลให้ครบ");
-        return;
-      }
-
-      const now = new Date();
-      const dateStr = now.toLocaleDateString("th-TH") + " " + now.toLocaleTimeString("th-TH");
-
-      lottoData.push({ customer, number, amount, date: dateStr });
-      saveData();
-      renderTable();
-
-      document.getElementById("customerName").value = "";
-      document.getElementById("number").value = "";
-      document.getElementById("amount").value = "";
-    }
-
-    function deleteRow(index) {
-      lottoData.splice(index, 1);
-      saveData();
-      renderTable();
-    }
-
-    function clearAll() {
-      if (confirm("ล้างข้อมูลทั้งหมด?")) {
-        lottoData = [];
-        saveData();
-        renderTable();
-      }
-    }
-
-    function exportExcel() {
-      if (lottoData.length === 0) {
-        alert("ไม่มีข้อมูลสำหรับส่งออก");
-        return;
-      }
-      const worksheet = XLSX.utils.json_to_sheet(lottoData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "LottoData");
-      XLSX.writeFile(workbook, "lottoData.xlsx");
-    }
+    document.getElementById("customer").value = "";
+    document.getElementById("number").value = "";
+    document.getElementById("amount").value = "";
 
     renderTable();
+  }
+
+  function deleteRow(index) {
+    lottoData.splice(index, 1);
+    localStorage.setItem("lottoData", JSON.stringify(lottoData));
+    renderTable();
+  }
+
+  function clearAll() {
+    if (confirm("คุณแน่ใจว่าต้องการลบข้อมูลทั้งหมด?")) {
+      lottoData = [];
+      localStorage.removeItem("lottoData");
+      renderTable();
+    }
+  }
+
+  function exportExcel() {
+    if (lottoData.length === 0) {
+      alert("ไม่มีข้อมูลสำหรับส่งออก");
+      return;
+    }
+    const ws = XLSX.utils.json_to_sheet(lottoData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Lotto Data");
+    XLSX.writeFile(wb, "บันทึกหวย.xlsx");
+  }
+
+  renderTable();
   </script>
 </body>
 </html>
